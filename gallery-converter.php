@@ -30,7 +30,12 @@ function convert_galleries_to_posts() {
         $gallery_data = get_post_meta($post->ID, '_post_image_gallery', true);
 
         // Unserialize the meta value
-        $attachment_ids = unserialize($gallery_data);
+        $attachment_ids = maybe_unserialize($gallery_data);
+
+        // Check if the unserialized data is an array
+        if (!is_array($attachment_ids)) {
+            continue; // Skip to the next post if the data is not an array
+        }
 
         // Prepare the gallery data for Kadence Blocks
         $gallery_images = array();
