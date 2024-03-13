@@ -27,7 +27,7 @@ function convert_galleries_to_posts() {
 
     foreach ($gallery_posts as $post) {
         // Get the gallery image data from the meta field
-        $gallery_data = get_post_meta($post->ID, '\_post\_image\_gallery', true);
+        $gallery_data = get_post_meta($post->ID, '_post_image_gallery', true);
 
         // Unserialize the meta value
         $attachment_ids = unserialize($gallery_data);
