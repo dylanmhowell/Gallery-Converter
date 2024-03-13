@@ -27,7 +27,7 @@ function convert_galleries_to_posts() {
 
     foreach ($gallery_posts as $post) {
         // Get the gallery image data from the meta field
-        $gallery_data = get_post_meta($post->ID, '_\_post\_\_image\_gallery', true);
+        $gallery_data = get_post_meta($post->ID, '\_post\_image\_gallery', true);
 
         // Unserialize the meta value
         $attachment_ids = unserialize($gallery_data);
@@ -35,6 +35,7 @@ function convert_galleries_to_posts() {
         // Prepare the gallery data for Kadence Blocks
         $gallery_images = array();
         foreach ($attachment_ids as $attachment_id) {
+            $attachment_id = intval($attachment_id); // Convert the attachment ID to an integer
             $image_url = wp_get_attachment_url($attachment_id);
             $thumbnail_url = wp_get_attachment_image_src($attachment_id, 'thumbnail');
             $image_meta = wp_get_attachment_metadata($attachment_id);
