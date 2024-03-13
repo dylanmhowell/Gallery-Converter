@@ -3,7 +3,7 @@
 Plugin Name: Gallery Converter
 Plugin URI: https://www.sightseedesign.com/
 Description: Converts the custom "gallery" post type to regular posts with Kadence gallery block.
-Version: 1.0
+Version: 1.1
 Author: Dylan Howell
 Author URI: https://www.sightseedesign.com/
 */
@@ -56,6 +56,13 @@ function convert_galleries_to_posts() {
             );
         }
 
+        // Get the featured image from the original gallery post
+        $featured_image_id = get_post_meta($post->ID, '_thumbnail_id', true);
+
+        // Get the categories from the original gallery post (excluding "Uncategorized")
+        $categories = wp_get_post_categories($post->ID, array('exclude' => get_option('default_category')));
+        $categories[] = $category->term_id; // Add the "gallery" category
+
         // Create the new post content with the gallery data
         $existing_content = $post->post_content; // Existing content from the "gallery" post type
         $gallery_block = '<!-- wp:kadence/advancedgallery {"uniqueID":"' . uniqid() . '","ids":' . json_encode(array_column($gallery_images, 'id')) . ',"imagesDynamic":' . json_encode($gallery_images) . ',"kbVersion":2} /-->';
@@ -67,6 +74,10 @@ function convert_galleries_to_posts() {
             // A post with the same title already exists, update the existing post
             $existing_post->post_content = $new_post_content;
             wp_update_post($existing_post);
+            if ($featured_image_id) {
+                update_post_meta($existing_post->ID, '_thumbnail_id', $featured_image_id);
+            }
+            wp_set_post_categories($existing_post->ID, $categories);
             continue;
         }
 
@@ -76,9 +87,14 @@ function convert_galleries_to_posts() {
             'post_content' => $new_post_content,
             'post_status' => 'publish',
             'post_type' => 'post',
-            'post_category' => array($category->term_id), // Set the category to "gallery"
+            'post_category' => $categories,
         );
         $new_post_id = wp_insert_post($new_post);
+
+        // Set the featured image for the new post
+        if ($featured_image_id) {
+            update_post_meta($new_post_id, '_thumbnail_id', $featured_image_id);
+        }
 
         // Update any internal links or references to the new post URL
         // ...
