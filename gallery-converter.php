@@ -3,12 +3,12 @@
 Plugin Name: Gallery Converter
 Plugin URI: https://www.sightseedesign.com/
 Description: Converts the custom "gallery" post type to regular posts with Kadence gallery block.
-Version: 1.1
+Version: 1.3
 Author: Dylan Howell
 Author URI: https://www.sightseedesign.com/
 */
 
-function convert_galleries_to_posts() {
+function convert_galleries_to_posts_batch($batch_size, $offset) {
     // Check if the "gallery" category exists, create it if needed
     $category_slug = 'gallery';
     $category = get_term_by('slug', $category_slug, 'category');
@@ -19,18 +19,16 @@ function convert_galleries_to_posts() {
         $category = get_term_by('id', $category_id['term_id'], 'category');
     }
 
-    // Query all "gallery" post type entries
+    // Query a batch of "gallery" post type entries
     $gallery_posts = get_posts(array(
         'post_type' => 'gallery',
-        'posts_per_page' => -1, // Retrieve all posts
+        'posts_per_page' => $batch_size,
+        'offset' => $offset,
     ));
 
     foreach ($gallery_posts as $post) {
         // Get the gallery image data from the meta field
         $gallery_data = get_post_meta($post->ID, '_post_image_gallery', true);
-
-        // Get the original publish date
-        $original_publish_date = $post->post_date;
 
         // Unserialize the meta value
         $attachment_ids = maybe_unserialize($gallery_data);
@@ -65,6 +63,9 @@ function convert_galleries_to_posts() {
         // Get the categories from the original gallery post (excluding "Uncategorized")
         $categories = wp_get_post_categories($post->ID, array('exclude' => get_option('default_category')));
         $categories[] = $category->term_id; // Add the "gallery" category
+
+        // Get the original publish date
+        $original_publish_date = $post->post_date;
 
         // Create the new post content with the gallery data
         $existing_content = $post->post_content; // Existing content from the "gallery" post type
@@ -104,7 +105,41 @@ function convert_galleries_to_posts() {
         // Update any internal links or references to the new post URL
         // ...
     }
+
+    // Schedule the next batch conversion
+    schedule_next_batch_conversion('convert_galleries_to_posts_batch', $batch_size);
+}
+
+function schedule_next_batch_conversion($hook, $batch_size) {
+    // Get the number of remaining galleries to convert
+    $remaining_galleries = wp_count_posts('gallery')->publish;
+
+    if ($remaining_galleries > 0) {
+        $offset = max(0, $remaining_galleries - $batch_size);
+        wp_schedule_single_event(time() + 60, $hook, array($batch_size, $offset));
+    }
+}
+
+function convert_galleries_to_posts() {
+    $batch_size = 30; // Set your desired batch size
+    $hook = 'convert_galleries_to_posts_batch';
+
+    add_action($hook, 'convert_galleries_to_posts_batch', 10, 2);
+    schedule_next_batch_conversion($hook, $batch_size);
+}
+
+function clear_scheduled_conversions($hook) {
+    $scheduled_events = _get_cron_array();
+    foreach ($scheduled_events as $timestamp => $cron) {
+        if (isset($cron[$hook])) {
+            unset($scheduled_events[$timestamp][$hook]);
+        }
+    }
+    _set_cron_array($scheduled_events);
 }
 
 // Run the conversion when the plugin is activated
 register_activation_hook(__FILE__, 'convert_galleries_to_posts');
+
+// Clear scheduled conversions when the plugin is deactivated (optional)
+register_deactivation_hook(__FILE__, 'clear_scheduled_conversions');
