@@ -29,6 +29,9 @@ function convert_galleries_to_posts() {
         // Get the gallery image data from the meta field
         $gallery_data = get_post_meta($post->ID, '_post_image_gallery', true);
 
+        // Get the original publish date
+        $original_publish_date = $post->post_date;
+
         // Unserialize the meta value
         $attachment_ids = maybe_unserialize($gallery_data);
 
@@ -88,6 +91,8 @@ function convert_galleries_to_posts() {
             'post_status' => 'publish',
             'post_type' => 'post',
             'post_category' => $categories,
+            'post_date' => $original_publish_date, // Set the original publish date
+            'post_date_gmt' => get_gmt_from_date($original_publish_date), // Set the GMT date
         );
         $new_post_id = wp_insert_post($new_post);
 
